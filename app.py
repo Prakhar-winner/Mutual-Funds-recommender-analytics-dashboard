@@ -1,113 +1,259 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from recommendation import get_recommendations
-from risk_metrics import calculate_metrics
-
-# -----------------------------
-# PAGE TITLE
-# -----------------------------
+from recommendation import recommend_funds
+from risk_metrics import (
+    overall_risk_metrics,
+    highest_return_funds,
+    top_risk_adjusted_funds,
+    low_expense_funds
+)
 
 st.set_page_config(
-    page_title="Mutual Fund Analytics",
+    page_title="Mutual Fund Analytics Platform",
+    page_icon="📈",
     layout="wide"
 )
 
-st.title("Mutual Fund Recommendation & Risk Analytics Dashboard")
+# --------------------------
+# LOAD DATA
+# --------------------------
 
-# -----------------------------
-# RISK PROFILE
-# -----------------------------
+scheme_df = pd.read_csv("processed_dataset.csv")
+sip_df = pd.read_csv("04_monthly_sip_inflows.csv")
+category_df = pd.read_csv("05_category_inflows.csv")
+folio_df = pd.read_csv("06_industry_folio_count.csv")
 
-risk = st.selectbox(
-    "Select Risk Profile",
-    ["Low", "Medium", "High"]
+# --------------------------
+# SIDEBAR
+# --------------------------
+
+st.sidebar.title("Navigation")
+
+page = st.sidebar.radio(
+
+    "Go To",
+
+    [
+
+        "Dashboard",
+
+        "Recommendation Engine",
+
+        "Fund Analytics",
+
+        "Industry Trends"
+
+    ]
+
 )
 
-# -----------------------------
-# RECOMMENDATIONS
-# -----------------------------
+# ==========================
+# DASHBOARD
+# ==========================
 
-st.header("Recommended Funds")
+if page == "Dashboard":
 
-rec = get_recommendations(risk)
+    st.title("📈 Mutual Fund Analytics Platform")
 
-st.dataframe(rec, use_container_width=True)
+    metrics = overall_risk_metrics()
 
-# -----------------------------
-# RISK METRICS
-# -----------------------------
+    c1,c2,c3,c4 = st.columns(4)
 
-st.header("Risk Metrics")
+    c1.metric("Funds",len(scheme_df))
+    c2.metric("Avg Return",metrics["Average 5Y Return"])
+    c3.metric("Avg Sharpe",metrics["Average Sharpe"])
+    c4.metric("Avg Alpha",metrics["Average Alpha"])
 
-metrics = calculate_metrics()
+    st.divider()
 
-col1, col2, col3, col4 = st.columns(4)
+    left,right=st.columns([2,1])
 
-with col1:
-    st.metric("Average Alpha", metrics["Average Alpha"])
+    with left:
 
-with col2:
-    st.metric("Average Sharpe", metrics["Average Sharpe"])
+        fig=px.bar(
 
-with col3:
-    st.metric("Average Beta", metrics["Average Beta"])
+            highest_return_funds(),
 
-with col4:
-    st.metric("Average Drawdown", metrics["Average Drawdown"])
+            x="scheme_name",
 
-# -----------------------------
-# SIP INFLOW TREND
-# -----------------------------
+            y="return_5yr_pct",
 
-st.header("Monthly SIP Trends")
+            color="return_5yr_pct",
 
-df = pd.read_csv("04_monthly_sip_inflows.csv")
+            title="Top Performing Mutual Funds"
 
-fig = px.line(
-    df,
-    x="month",
-    y="sip_inflow_crore",
-    title="Monthly SIP Inflows"
-)
+        )
 
-st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig,use_container_width=True)
 
-# -----------------------------
-# CATEGORY INFLOWS
-# -----------------------------
+    with right:
 
-st.header("Category-wise Net Inflows")
+        st.subheader("Dataset")
 
-df2 = pd.read_csv("05_category_inflows.csv")
+        st.write("Fund Houses :",scheme_df["fund_house"].nunique())
 
-fig2 = px.bar(
-    df2,
-    x="category",
-    y="net_inflow_crore",
-    title="Category Inflows"
-)
+        st.write("Categories :",scheme_df["category"].nunique())
 
-st.plotly_chart(fig2, use_container_width=True)
+        st.write("Risk Grades :",scheme_df["risk_grade"].nunique())
 
-# -----------------------------
-# RAW DATA SECTION
-# -----------------------------
+        st.write("Total Schemes :",len(scheme_df))
 
-with st.expander("View Raw SIP Data"):
-    st.dataframe(df)
+# ==========================
+# RECOMMENDATION ENGINE
+# ==========================
 
-with st.expander("View Category Data"):
-    st.dataframe(df2)
+elif page=="Recommendation Engine":
 
-# -----------------------------
-# FOOTER
-# -----------------------------
+    st.title("🤖 AI Recommendation Engine")
 
-st.markdown("---")
-st.caption(
-    "Built using Python, Pandas, Plotly and Streamlit for Mutual Fund Risk Analytics."
-)
+    risk=st.selectbox(
+
+        "Select Risk Profile",
+
+        [
+
+            "Low",
+
+            "Medium",
+
+            "High"
+
+        ]
+
+    )
+
+    rec=recommend_funds(risk)
+
+    st.dataframe(
+
+        rec,
+
+        use_container_width=True
+
+    )
+
+# ==========================
+# FUND ANALYTICS
+# ==========================
+
+elif page=="Fund Analytics":
+
+    st.title("📊 Fund Analytics")
+
+    tab1,tab2,tab3=st.tabs(
+
+        [
+
+            "Highest Return",
+
+            "Sharpe Ratio",
+
+            "Lowest Expense"
+
+        ]
+
+    )
+
+    with tab1:
+
+        fig=px.bar(
+
+            highest_return_funds(),
+
+            x="scheme_name",
+
+            y="return_5yr_pct",
+
+            color="return_5yr_pct"
+
+        )
+
+        st.plotly_chart(fig,use_container_width=True)
+
+    with tab2:
+
+        fig=px.bar(
+
+            top_risk_adjusted_funds(),
+
+            x="scheme_name",
+
+            y="sharpe_ratio",
+
+            color="sharpe_ratio"
+
+        )
+
+        st.plotly_chart(fig,use_container_width=True)
+
+    with tab3:
+
+        fig=px.bar(
+
+            low_expense_funds(),
+
+            x="scheme_name",
+
+            y="expense_ratio_pct",
+
+            color="expense_ratio_pct"
+
+        )
+
+        st.plotly_chart(fig,use_container_width=True)
+
+# ==========================
+# INDUSTRY
+# ==========================
+
+else:
+
+    st.title("📈 Industry Trends")
+
+    fig=px.line(
+
+        sip_df,
+
+        x="month",
+
+        y="sip_inflow_crore",
+
+        markers=True,
+
+        title="Monthly SIP Inflows"
+
+    )
+
+    st.plotly_chart(fig,use_container_width=True)
+
+    fig=px.bar(
+
+        category_df,
+
+        x="category",
+
+        y="net_inflow_crore",
+
+        color="category"
+
+    )
+
+    st.plotly_chart(fig,use_container_width=True)
+
+    fig=px.line(
+
+        folio_df,
+
+        x="month",
+
+        y="total_folios_crore",
+
+        markers=True,
+
+        title="Industry Folio Growth"
+
+    )
+
+    st.plotly_chart(fig,use_container_width=True)

@@ -1,35 +1,135 @@
-# recommendation.py
-
 import pandas as pd
+import joblib
 
-def get_recommendations(risk_level):
+# ----------------------------------
+# LOAD MODEL
+# ----------------------------------
 
-    df = pd.read_csv("07_scheme_performance.csv")
+model = joblib.load("model.pkl")
 
-    if risk_level == "Low":
-        rec = df.sort_values(
-            ["sharpe_ratio"],
-            ascending=False
-        ).head(5)
+features = joblib.load("model_features.pkl")
 
-    elif risk_level == "Medium":
-        rec = df.sort_values(
-            ["alpha"],
-            ascending=False
-        ).head(5)
+df = pd.read_csv("processed_dataset.csv")
+
+
+# ----------------------------------
+# RECOMMENDATION FUNCTION
+# ----------------------------------
+
+def recommend_funds(risk_profile):
+
+    data = df.copy()
+
+    # ----------------------------------
+    # FILTER BASED ON RISK
+    # ----------------------------------
+
+    if risk_profile == "Low":
+
+        data = data[
+            data["risk_grade"] <= 1
+        ]
+
+    elif risk_profile == "Medium":
+
+        data = data[
+            data["risk_grade"] <= 2
+        ]
 
     else:
-        rec = df.sort_values(
-            ["return_5yr_pct"],
-            ascending=False
-        ).head(5)
 
-    return rec[
+        data = data.copy()
+
+    # ----------------------------------
+    # ML PREDICTION
+    # ----------------------------------
+
+    X = data[features]
+
+    probability = model.predict_proba(X)
+
+    data["ML Score"] = probability[:,1] * 100
+
+    # ----------------------------------
+    # NORMALIZE MORNINGSTAR
+    # ----------------------------------
+
+    data["Morningstar Score"] = (
+
+        data["morningstar_rating"] / 5
+
+    ) * 100
+
+    # ----------------------------------
+    # LOW EXPENSE BONUS
+    # ----------------------------------
+
+    maximum = data["expense_ratio_pct"].max()
+
+    minimum = data["expense_ratio_pct"].min()
+
+    data["Expense Bonus"] = (
+
+        (maximum - data["expense_ratio_pct"])
+
+        /
+
+        (maximum - minimum + 0.0001)
+
+    ) * 100
+
+    # ----------------------------------
+    # FINAL SCORE
+    # ----------------------------------
+
+    data["Recommendation Score"] = (
+
+        0.70 * data["ML Score"]
+
+        +
+
+        0.20 * data["Morningstar Score"]
+
+        +
+
+        0.10 * data["Expense Bonus"]
+
+    )
+
+    # ----------------------------------
+    # SORT
+    # ----------------------------------
+
+    data = data.sort_values(
+
+        by="Recommendation Score",
+
+        ascending=False
+
+    )
+
+    # ----------------------------------
+    # RETURN
+    # ----------------------------------
+
+    return data[
+
         [
+
             "scheme_name",
+
+            "fund_house",
+
             "category",
+
             "return_5yr_pct",
-            "sharpe_ratio",
-            "alpha"
+
+            "expense_ratio_pct",
+
+            "morningstar_rating",
+
+            "Recommendation Score"
+
         ]
-    ]
+
+    ].head(5)
