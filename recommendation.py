@@ -1,6 +1,6 @@
 import pandas as pd
 import joblib
-
+import sqlite3
 # ----------------------------------
 # LOAD MODEL
 # ----------------------------------
@@ -9,7 +9,7 @@ model = joblib.load("model.pkl")
 
 features = joblib.load("model_features.pkl")
 
-import sqlite3
+
 
 
 conn = sqlite3.connect("mutual_funds.db")
