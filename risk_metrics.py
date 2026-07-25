@@ -1,7 +1,9 @@
 import pandas as pd
+conn = sqlite3.connect("mutual_funds.db")
 
-df = pd.read_csv("processed_dataset.csv")
+df = pd.read_sql("SELECT * FROM scheme_performance", conn)
 
+conn.close()
 
 def overall_risk_metrics():
 

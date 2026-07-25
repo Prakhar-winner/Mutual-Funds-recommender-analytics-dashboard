@@ -9,8 +9,14 @@ model = joblib.load("model.pkl")
 
 features = joblib.load("model_features.pkl")
 
-df = pd.read_csv("processed_dataset.csv")
+import sqlite3
 
+
+conn = sqlite3.connect("mutual_funds.db")
+
+df = pd.read_sql("SELECT * FROM scheme_performance", conn)
+
+conn.close()
 
 # ----------------------------------
 # RECOMMENDATION FUNCTION
