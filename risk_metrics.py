@@ -1,4 +1,6 @@
 import pandas as pd
+import sqlite3
+
 conn = sqlite3.connect("mutual_funds.db")
 
 df = pd.read_sql("SELECT * FROM scheme_performance", conn)
